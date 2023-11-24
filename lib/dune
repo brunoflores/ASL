@@ -1,2 +1,10 @@
 (library
- (name ASL))
+ (name ASL)
+ (libraries menhirLib))
+
+(ocamllex
+ (modules lexer))
+
+(menhir
+ (modules parser)
+ (flags --strict))

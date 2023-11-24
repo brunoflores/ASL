@@ -1,8 +1,7 @@
-type asl =
-  | CONST of int
-  | Var of int
-  | Cond of asl * asl * asl
-  | App of asl * asl
-  | Abs of string * asl
+(*
+module E = MenhirLib.ErrorReports
+module L = MenhirLib.LexerUtil
+module I = ASL.Parser.MenhirInterpreter
+*)
 
 let () = print_endline "Hello, World!"
