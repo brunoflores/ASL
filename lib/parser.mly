@@ -12,10 +12,7 @@ let binding_depth s rho =
 		      else bind (n+1) tail
   in bind 1 rho
 
-(*
 let init_env = ["+"; "-"; "*"; "/"; "="]
-type ctx = string list
-*)
 
 %}
 
@@ -48,13 +45,36 @@ top:
 
 expression:
   | e = expr
-    { let e', _ = e [] in e' }
+    { let e', _ = e init_env in e' }
+
+rest:
+  | e = atom
+    { fun ctx ->
+        let e', ctx' = e ctx in
+        (e', ctx') }
+  | e1 = atom; e2 = atom
+    { fun ctx ->
+        let e1', _ = e1 ctx in
+        let e2', _ = e2 ctx in
+	App (e1', e2'), ctx }
+  | e1 = atom; e2 = atom; es = rest
+    { fun ctx ->
+        let e1', _ = e1 ctx in
+        let e2', _ = e2 ctx in
+	let es', _ = es ctx in
+	App ((App (e1', e2')), es'), ctx }
 
 expr:
   | LAMBDA; x = IDENT; DOT; e = expr
     { fun ctx ->
         let e', ctx' = e (x :: ctx) in
         Abs (x, e'), ctx' }
+  | e = rest
+    { fun ctx ->
+        let e', ctx' = e ctx in
+	e', ctx' }
+
+atom:
   | x = IDENT
     { fun ctx ->
         try binding_depth x ctx, ctx
@@ -63,3 +83,12 @@ expr:
   | n = INT
     { fun ctx ->
         Const n, ctx }
+  | IF; e1 = expr; THEN; e2 = expr; ELSE; e3 = expr; FI
+    { fun ctx ->
+        let e1', _ = e1 ctx in
+        let e2', _ = e2 ctx in
+	let e3', _ = e3 ctx in
+        Cond (e1', e2', e3'), ctx }
+  | LPAR; e = expr; RPAR
+    { fun ctx ->
+        let e', ctx' = e ctx in (e', ctx') }
