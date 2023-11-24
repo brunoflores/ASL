@@ -47,7 +47,7 @@ expression:
   | e = expr
     { let e', _ = e init_env in e' }
 
-applications:
+apps:
   | e = atom
     { fun ctx ->
         let e', ctx' = e ctx in
@@ -57,7 +57,7 @@ applications:
         let e1', _ = e1 ctx in
         let e2', _ = e2 ctx in
 	App (e1', e2'), ctx }
-  | e1 = atom; e2 = atom; es = applications
+  | e1 = atom; e2 = atom; es = apps
     { fun ctx ->
         let e1', _ = e1 ctx in
         let e2', _ = e2 ctx in
@@ -69,7 +69,7 @@ expr:
     { fun ctx ->
         let e', ctx' = e (x :: ctx) in
         Abs (x, e'), ctx' }
-  | e = applications
+  | e = apps
     { fun ctx ->
         let e', ctx' = e ctx in
 	e', ctx' }
