@@ -131,3 +131,41 @@ let rec asl_typing_expr gamma =
         Arrow (u, asl_typing_expr (s :: gamma) e)
   in
   type_rec
+
+(* Compute a decent name for type variables. *)
+let tvar_name n =
+  let rec name_of n =
+    let q, r = (n / 26, n mod 26) in
+    let s = String.make 1 (char_of_int (96 + r)) in
+    if q = 0 then s else name_of q ^ s
+  in
+  "'" ^ name_of n
+
+(* A printing function for type schemes. *)
+let print_type_scheme (Forall (gv, t)) =
+  let names =
+    let rec names_of = function
+      | _n, [] -> []
+      | n, _ :: lv -> tvar_name n :: names_of (n + 1, lv)
+    in
+    names_of (1, gv)
+  in
+  let tvar_names = List.combine (List.rev gv) names in
+  let rec print_rec = function
+    | TypeVar { index = n; value = Unknown } ->
+        let name =
+          try List.assoc n tvar_names
+          with Not_found -> raise (Typingbug "Non generic variable")
+        in
+        print_string name
+    | TypeVar { value = t; _ } -> print_rec t
+    | Number -> print_string "Number"
+    | Arrow (t1, t2) ->
+        print_string "(";
+        print_rec t1;
+        print_string " -> ";
+        print_rec t2;
+        print_string ")"
+    | Unknown -> raise (Typingbug "print_type_scheme")
+  in
+  print_rec t
