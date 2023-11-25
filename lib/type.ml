@@ -71,4 +71,20 @@ let vars_of_type tau =
   in
   vars [] tau
 
+(* [unknowns_of_type (bv, t)] returns the list of variables occuring in [t] that
+   do not appear in [bv]. *)
 let unkowns_of_type (bv, t) = Lib.subtract (vars_of_type t) bv
+
+(* The set of unknowns of a type environment is the union of the unknowns
+   of each type. *)
+let unknowns_of_type_env env =
+  List.flatten
+    (List.map (function Forall (gv, t) -> unkowns_of_type (gv, t)) env)
+
+let generalise_type (gamma, tau) =
+  let module IntSet = Set.Make (Int) in
+  let genvars =
+    IntSet.of_list
+    @@ Lib.subtract (vars_of_type tau) (unknowns_of_type_env gamma)
+  in
+  Forall (IntSet.fold List.cons genvars [], tau)
