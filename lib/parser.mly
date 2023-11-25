@@ -12,8 +12,6 @@ let binding_depth s rho =
 		      else bind (n+1) tail
   in bind 1 rho
 
-let init_env = ["+"; "-"; "*"; "/"; "="]
-
 %}
 
 %token <int> INT
@@ -45,7 +43,7 @@ top:
 
 expression:
   | e = expr
-    { let e', _ = e init_env in e' }
+    { let e', _ = e Sem.init_env in e' }
 
 apps:
   | e = atom
