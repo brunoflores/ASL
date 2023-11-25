@@ -29,17 +29,17 @@ let binding_depth s rho =
 %token RPAR
 %token EOF
 
-%start <top_asl option> top
+%start <top_asl> top
 
 %%
 
 top:
   | EOF
-    { None }
+    { Decl ("it", Const 0) }
   | LET; x = IDENT; BE; e = expression; SEMIC; EOF
-    { Some (Decl (x, e))  }
+    { Decl (x, e)  }
   | e = expression; SEMIC; EOF
-    { Some (Decl ("it", e)) }
+    { Decl ("it", e) }
 
 expression:
   | e = expr

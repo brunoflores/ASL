@@ -169,3 +169,32 @@ let print_type_scheme (Forall (gv, t)) =
     | Unknown -> raise (Typingbug "print_type_scheme")
   in
   print_rec t
+
+(* Reset type variables counter, calls the type synthesizer, traps
+   ASL type clashes and prints the resulting types. *)
+let typing (Ast.Decl (s, e)) =
+  reset_vartypes ();
+  let tau =
+    (* Typing *)
+    try asl_typing_expr !global_typing_env e
+    with Typeclash (t1, t2) ->
+      (* Typing error *)
+      let vars = vars_of_type t1 @ vars_of_type t2 in
+      print_string "ASL Type class between ";
+      print_type_scheme (Forall (vars, t1));
+      print_string "and ";
+      print_type_scheme (Forall (vars, t2));
+      print_newline ();
+      raise (Failure "ASL typing")
+  in
+  let sigma = generalise_type (!global_typing_env, tau) in
+  (* Updating environments *)
+  Sem.global_env := s :: !Sem.global_env;
+  global_typing_env := sigma :: !global_typing_env;
+  reset_vartypes ();
+  (* Printing resulting type *)
+  print_string "ASL Type of ";
+  print_string s;
+  print_string " is ";
+  print_type_scheme sigma;
+  print_newline ()
