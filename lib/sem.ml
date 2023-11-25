@@ -29,9 +29,8 @@ let rec nth n = function
   | head :: tail -> if n = 1 then head else nth (n - 1) tail
 
 let rec semant rho =
-  let open Ast in
   let rec sem = function
-    | Const n -> Constval n
+    | Ast.Const n -> Constval n
     | Var n -> nth n rho
     | Cond (e1, e2, e3) -> (
         match sem e1 with
