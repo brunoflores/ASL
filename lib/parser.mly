@@ -43,7 +43,7 @@ top:
 
 expression:
   | e = expr
-    { let e', _ = e Sem.init_env in e' }
+    { let e', _ = e !Sem.global_env in e' }
 
 apps:
   | e = atom
