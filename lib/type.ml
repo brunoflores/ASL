@@ -88,3 +88,46 @@ let generalise_type (gamma, tau) =
     @@ Lib.subtract (vars_of_type tau) (unknowns_of_type_env gamma)
   in
   Forall (IntSet.fold List.cons genvars [], tau)
+
+let gen_instance (Forall (gv, tau)) =
+  let unknowns = List.map (function n -> (n, TypeVar (new_vartype ()))) gv in
+  let rec ginstance = function
+    | TypeVar { index = n; value = Unknown } as t -> (
+        try List.assoc n unknowns with Not_found -> t)
+    | TypeVar { value = t; _ } -> ginstance t
+    | Number -> Number
+    | Arrow (t1, t2) -> Arrow (ginstance t1, ginstance t2)
+    | Unknown -> raise (Typingbug "gen_instance")
+  in
+  ginstance tau
+
+(* Each rule corresponds to a typing inference rule. *)
+let rec asl_typing_expr gamma =
+  let rec type_rec = function
+    | Ast.Const _ -> Number
+    | Var n ->
+        let sigma =
+          try List.nth gamma n with Failure _ -> raise (Typingbug "Unbound")
+        in
+        gen_instance sigma
+    | Cond (e1, e2, e3) ->
+        unify (Number, type_rec e1);
+        let t2 = type_rec e2 in
+        let t3 = type_rec e3 in
+        unify (t2, t3);
+        t3
+    | App (Abs (_x, e2), e1) ->
+        (* LET case *)
+        let t1 = type_rec e1 in
+        let sigma = generalise_type (gamma, t1) in
+        asl_typing_expr (sigma :: gamma) e2
+    | App (e1, e2) ->
+        let u = TypeVar (new_vartype ()) in
+        unify (type_rec e1, Arrow (type_rec e2, u));
+        u
+    | Abs (_x, e) ->
+        let u = TypeVar (new_vartype ()) in
+        let s = Forall ([], u) in
+        Arrow (u, asl_typing_expr (s :: gamma) e)
+  in
+  type_rec
