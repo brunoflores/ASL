@@ -87,3 +87,26 @@ let step state =
         (try List.nth e n with Failure _ -> raise (CAMbug "IllTyped"));
       state.pc <- code
   | _ -> raise (CAMbug "Wrong configuration")
+
+(** The compilation scheme:
+  * The code of a constant is [Quote];
+  * A variable is compile as an access to the appropriate component of the
+    current environment ([Nth]);
+  * Conditional expression will save the current environment ([Push]),
+    evaluate the condition part, and, according to the boolean value obtained,
+    select the appropriate code to execute ([Branch]);
+  * Application will save the environment on the stack ([Push]), execute
+    the function part of the application, then exchange the functional value and
+    the saved environment ([Swap]), evaluate the argument and, finally,
+    apply the functional value (which is at the top of the stack) to
+    the argument held in the register with the [Apply] instruction;
+  * Abstraction simply consists in building a clusure representing the
+    functional value: the closure is composed of the code of the function
+    and the current environment. *)
+let rec code_of = function
+  | Ast.Const n -> [ Quote n ]
+  | Var n -> [ Nth n ]
+  | Cond (e1, e2, e3) ->
+      (Push :: code_of e1) @ [ Branch (code_of e2, code_of e3) ]
+  | App (e1, e2) -> (Push :: code_of e1) @ [ Swap ] @ code_of e2 @ [ Apply ]
+  | Abs (_, e) -> [ Clos (code_of e) ]
