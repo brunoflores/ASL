@@ -115,3 +115,21 @@ let rec code_of = function
       (Push :: code_of e1) @ [ Branch (code_of e2, code_of e3) ]
   | App (e1, e2) -> (Push :: code_of e1) @ [ Swap ] @ code_of e2 @ [ Apply ]
   | Abs (_, e) -> [ Clos (code_of e) ]
+
+let init_cam_env =
+  let basic_instruction = function
+    | "+" -> Plus
+    | "-" -> Minus
+    | "*" -> Times
+    | "/" -> Divide
+    | "=" -> Equal
+    | s -> raise (CAMbug (Format.sprintf "Unknown primitive: %s" s))
+  in
+  List.map
+    (function
+      | s ->
+          let code =
+            [ Clos (Push :: Nth 2 :: Swap :: Nth 1 :: [ basic_instruction s ]) ]
+          in
+          Closure (Address code, Environment []))
+    Sem.init_env
