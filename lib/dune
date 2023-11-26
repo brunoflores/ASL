@@ -1,6 +1,8 @@
 (library
  (name ASL)
- (libraries menhirLib))
+ (inline_tests)
+ (libraries menhirLib)
+ (preprocess (pps ppx_inline_test ppx_deriving.show ppx_deriving.eq)))
 
 (ocamllex
  (modules lexer))

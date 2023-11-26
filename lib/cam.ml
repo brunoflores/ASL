@@ -11,6 +11,9 @@ type instruction =
   | Swap (* Exchange top of stack and register *)
   | Clos of instruction list (* Builds a closure with current environment *)
   | Apply (* Function application *)
+[@@deriving show, eq]
+
+type instr_list = instruction list [@@deriving show, eq]
 
 type obj =
   | Constant of int
@@ -133,3 +136,72 @@ let init_cam_env =
           in
           Closure (Address code, Environment []))
     Sem.init_env
+
+let global_cam_env = ref init_cam_env
+
+let%test _ =
+  let ast = Ast.Const 1 in
+  let got = code_of ast in
+  let want = [ Quote 1 ] in
+  equal_instr_list got want
+
+let%test_unit _ =
+  let want =
+    [ Push; Push; Nth 6; Swap; Quote 1; Apply; Swap; Quote 2; Apply ]
+  in
+  let ast = Ast.App (App (Var 6, Const 1), Const 2) in
+  let got = code_of ast in
+  if not (equal_instr_list got want) then (
+    print_endline
+    @@ Format.sprintf "\nwant: %s\ngot: %s\n\n" (show_instr_list want)
+         (show_instr_list got);
+    raise (Failure ""))
+  else ()
+
+let%test_unit _ =
+  let want =
+    [
+      Push;
+      Clos [ Nth 1 ];
+      Swap;
+      Push;
+      Clos [ Nth 1 ];
+      Swap;
+      Quote 0;
+      Apply;
+      Apply;
+    ]
+  in
+  let ast = Ast.App (Abs ("x", Var 1), App (Abs ("x", Var 1), Const 0)) in
+  let got = code_of ast in
+  if not (equal_instr_list got want) then (
+    print_endline
+    @@ Format.sprintf "\nwant: %s\ngot: %s\n\n" (show_instr_list want)
+         (show_instr_list got);
+    raise (Failure ""))
+  else ()
+
+let%test_unit _ =
+  let want =
+    [
+      Push;
+      Push;
+      Nth 6;
+      Swap;
+      Quote 1;
+      Apply;
+      Swap;
+      Push;
+      Quote 0;
+      Branch ([ Quote 2 ], [ Quote 3 ]);
+      Apply;
+    ]
+  in
+  let ast = Ast.App (App (Var 6, Const 1), Cond (Const 0, Const 2, Const 3)) in
+  let got = code_of ast in
+  if not (equal_instr_list got want) then (
+    print_endline
+    @@ Format.sprintf "\nwant: %s\ngot: %s\n\n" (show_instr_list want)
+         (show_instr_list got);
+    raise (Failure ""))
+  else ()
