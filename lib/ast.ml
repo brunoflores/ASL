@@ -6,3 +6,5 @@ type asl =
   | Abs of string * asl
 
 and top_asl = Decl of string * asl
+
+exception Unbound of string

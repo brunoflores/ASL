@@ -2,8 +2,6 @@
 
 open Ast
 
-exception Unbound of string
-
 let binding_depth s rho =
   let rec bind n = function
     | [] -> raise (Unbound s)

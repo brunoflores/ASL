@@ -195,3 +195,50 @@ let%test_unit _ =
   in
   let ast = Ast.App (App (Var 6, Const 1), Cond (Const 0, Const 2, Const 3)) in
   test_it ast instrs
+
+(* The main function for executing compiled ASL manages the global environment
+   until execution has succeeded. *)
+let run (Ast.Decl (s, e)) =
+  let open Type in
+  (* Typing *)
+  Type.reset_vartypes ();
+  let tau =
+    try asl_typing_expr !global_typing_env e with
+    | Typeclash (t1, t2) ->
+        let vars = vars_of_type t1 @ vars_of_type t2 in
+        print_string "ASL Type clash between ";
+        print_type_scheme (Forall (vars, t1));
+        print_string " and ";
+        print_type_scheme (Forall (vars, t2));
+        raise (Failure "ASL typing")
+    | Ast.Unbound s -> raise (Typingbug ("Unbound: " ^ s))
+  in
+  let sigma = generalise_type (!global_typing_env, tau) in
+  (* Printing type information *)
+  print_string "ASL Type of ";
+  print_string s;
+  print_string " is ";
+  print_type_scheme sigma;
+  print_newline ();
+  (* Compiling *)
+  let code = code_of e in
+  let state = { reg = Environment !global_cam_env; pc = code; stack = [] } in
+  (* Executing *)
+  let result =
+    try
+      while true do
+        step state
+      done;
+      state.reg
+    with CAMend v -> v
+  in
+  (* Updating environments *)
+  Sem.global_env := s :: !Sem.global_env;
+  global_typing_env := sigma :: !global_typing_env;
+  global_cam_env := result :: !global_cam_env;
+  (* Printing result *)
+  (match result with
+  | Constant n -> print_int n
+  | Closure _ -> print_string "<funval>"
+  | _ -> raise (CAMbug "Wrong state configuration"));
+  print_newline ()
