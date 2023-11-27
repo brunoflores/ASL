@@ -208,7 +208,7 @@ let typing (Ast.Decl (s, e)) =
       let vars = vars_of_type t1 @ vars_of_type t2 in
       print_string "ASL Type class between ";
       print_type_scheme (Forall (vars, t1));
-      print_string "and ";
+      print_string " and ";
       print_type_scheme (Forall (vars, t2));
       print_newline ();
       raise (Failure "ASL typing")
