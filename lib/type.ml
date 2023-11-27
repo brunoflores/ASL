@@ -101,7 +101,7 @@ let rec make_set = function
 
 let generalise_type (gamma, tau) =
   let genvars =
-    make_set (Lib.subtract (vars_of_type tau) (unknowns_of_type_env gamma))
+    make_set @@ Lib.subtract (vars_of_type tau) (unknowns_of_type_env gamma)
   in
   Forall (genvars, tau)
 
