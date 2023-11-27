@@ -1,15 +1,21 @@
 type asl_type =
+  (* Unknown is the initial value of type variables. *)
   | Unknown
   | Number
   | TypeVar of vartype
   | Arrow of asl_type * asl_type
 
 and vartype = { index : int; mutable value : asl_type }
-and asl_type_scheme = Forall of int list * asl_type
 
+type asl_type_scheme = Forall of int list * asl_type
+
+(* When Unknown appears in place of fresh type variables. *)
 exception Typingbug of string
+
+(* Typing errors. *)
 exception Typeclash of asl_type * asl_type
 
+(* Type variables are allocated by [new_vartype]. *)
 let new_vartype, reset_vartypes =
   let counter = ref 0 in
   ( (function
@@ -18,6 +24,8 @@ let new_vartype, reset_vartypes =
         { index = !counter; value = Unknown }),
     function () -> counter := 0 )
 
+(* Since type variables are indirections to types, we need to follow
+   them in order to obtain the type that they represent. *)
 let rec shorten t =
   match t with
   | TypeVar { value = Unknown; _ } -> t
@@ -38,6 +46,11 @@ let occurs { index = n; _ } =
   in
   occrec
 
+(* Destructive unification.
+   Instead of returning the most general unifier, it returns the
+   unificand of two types (their most general common instance).
+
+   The two arguments are physically modified to represent the same type. *)
 let rec unify (tau1, tau2) =
   match (shorten tau1, shorten tau2) with
   | ( TypeVar ({ index = n; value = Unknown } as tv1),
@@ -81,13 +94,16 @@ let unknowns_of_type_env env =
   List.flatten
     (List.map (function Forall (gv, t) -> unkowns_of_type (gv, t)) env)
 
+let rec make_set = function
+  | [] -> []
+  | head :: tail ->
+      if List.mem head tail then make_set tail else head :: make_set tail
+
 let generalise_type (gamma, tau) =
-  let module IntSet = Set.Make (Int) in
   let genvars =
-    IntSet.of_list
-    @@ Lib.subtract (vars_of_type tau) (unknowns_of_type_env gamma)
+    make_set (Lib.subtract (vars_of_type tau) (unknowns_of_type_env gamma))
   in
-  Forall (IntSet.fold List.cons genvars [], tau)
+  Forall (genvars, tau)
 
 let gen_instance (Forall (gv, tau)) =
   let unknowns = List.map (function n -> (n, TypeVar (new_vartype ()))) gv in
@@ -104,27 +120,35 @@ let gen_instance (Forall (gv, tau)) =
 (* Each rule corresponds to a typing inference rule. *)
 let rec asl_typing_expr gamma =
   let rec type_rec = function
+    (* (NUM) *)
     | Ast.Const _ -> Number
+    (* (INST) *)
     | Var n ->
         let sigma =
-          try List.nth gamma n with Failure _ -> raise (Typingbug "Unbound")
+          (* The first element of list is at position 0, so we subtract query by 1. *)
+          try List.nth gamma (n - 1)
+          with Failure _ -> raise (Typingbug "Unbound")
         in
         gen_instance sigma
+    (* (COND) *)
     | Cond (e1, e2, e3) ->
         unify (Number, type_rec e1);
         let t2 = type_rec e2 in
         let t3 = type_rec e3 in
         unify (t2, t3);
         t3
+    (* LET *)
+    (* With priority over the regular application rule. *)
     | App (Abs (_x, e2), e1) ->
-        (* LET case *)
         let t1 = type_rec e1 in
         let sigma = generalise_type (gamma, t1) in
         asl_typing_expr (sigma :: gamma) e2
+    (* (APP) *)
     | App (e1, e2) ->
         let u = TypeVar (new_vartype ()) in
         unify (type_rec e1, Arrow (type_rec e2, u));
         u
+    (* (ABS) *)
     | Abs (_x, e) ->
         let u = TypeVar (new_vartype ()) in
         let s = Forall ([], u) in
@@ -139,7 +163,9 @@ let tvar_name n =
     let s = String.make 1 (char_of_int (96 + r)) in
     if q = 0 then s else name_of q ^ s
   in
-  "'" ^ name_of n
+  Format.sprintf "'%s" @@ name_of n
+
+let%test _ = tvar_name 1 = "'a" && tvar_name 2 = "'b" && tvar_name 3 = "'c"
 
 (* A printing function for type schemes. *)
 let print_type_scheme (Forall (gv, t)) =
