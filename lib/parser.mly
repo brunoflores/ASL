@@ -2,6 +2,8 @@
 
 open Ast
 
+(* Look for the position of the first occurrence of a variable name
+   in the list. The first occurrence is at position 1.  *)
 let binding_depth s rho =
   let rec bind n = function
     | [] -> raise (Unbound s)
